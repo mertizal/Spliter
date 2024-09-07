@@ -1,17 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_lang::system_program;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
 // Declare the program's ID to use in the program. You should generate a new one
-declare_id!("FZaN7Fs58eKPa6NJ93EeKt1j5x6ZUcCAGsKif7mgeWaZ");
+declare_id!("5dX5TTzKk54NXdtXpocfk71NY92fXnXkm4LBhJpbaQ4b");
 
-/*
- * The Purple Piggy program
- * This program allows users to create a vault and deposit money into it
- * The money is then distributed to the vault's accounts based on the percentages provided
- * The vault can be updated and deleted by the vault's authority
- * The vault's accounts can claim their money from the vault
- * The vault's authority can claim the remaining money from the vault
- */
 #[program]
 mod purple_piggy {
     use super::*;
@@ -20,7 +13,8 @@ mod purple_piggy {
         ctx: Context<CreateVault>, // Function context containing accounts and other information
         name: String,              // Name of the vault
         percentages: Vec<u64>,     // Vector containing percentage values
-        acct: Vec<Pubkey>,         // Vector containing account public keys
+        acct: Vec<Pubkey>,
+        // Vector containing account public keys
     ) -> Result<()> {
         let mut total_rate = 0; // Variable to calculate the total rate
 
@@ -51,6 +45,9 @@ mod purple_piggy {
         vault.name = name; // Set the vault name
         vault.percentages = percentages; // Set the vault percentage values
         vault.accounts = acct; // Set the vault account public keys
+        vault.vault_bump = ctx.bumps.vault;
+        vault.vault_token_account = ctx.accounts.vault_token_account.key();
+        vault.token_id = ctx.accounts.token.key();
 
         // Iterate over the vault accounts and corresponding percentages, displaying them
         for (i, item) in vault.accounts.iter().enumerate() {
@@ -135,17 +132,16 @@ mod purple_piggy {
         vault.accounts_vault = vec; // Update the vault's account vaults with the calculated values
 
         // Create a CPI context to transfer the deposited lamports from the authority account to the vault account
-        let cpi_context = CpiContext::new(
-            ctx.accounts.system_program.to_account_info(),
-            system_program::Transfer {
-                from: ctx.accounts.authority.to_account_info().clone(), // Authority account
-                to: vault.to_account_info().clone(),                    // Vault account
-            },
-        );
+        let to = ctx.accounts.vault_token_account.to_account_info(); // to
+        let from = ctx.accounts.singer_token_account.to_account_info(); // from
+        let accounts = Transfer {
+            from: from,
+            to: to,
+            authority: ctx.accounts.authority.to_account_info(),
+        };
 
-        // Transfer the deposited lamports from the authority account to the vault account
-        system_program::transfer(cpi_context, lamports)?;
-
+        let cpi_context = CpiContext::new(ctx.accounts.token_program.to_account_info(), accounts);
+        transfer(cpi_context, lamports);
         // Display a message indicating that the deposit was successful and the updated total
         msg!("Deposit successfully. Total: {}", vault.total);
         Ok(()) // Return Ok indicating successful execution of the function
@@ -171,11 +167,30 @@ mod purple_piggy {
                     return Err(ErrorCode::Unauthorized.into());
                 } else {
                     // Update the lamports balance of the vault and claimer accounts
-                    **vault.to_account_info().try_borrow_mut_lamports()? -= money;
-                    **ctx.accounts.claimer.try_borrow_mut_lamports()? += money;
+
+                    let from = ctx.accounts.vault_token_account.to_account_info();
+                    let to = ctx.accounts.singer_token_account.to_account_info();
+                    let hesaplar = Transfer {
+                        from: from,
+                        to: to,
+                        authority: vault.to_account_info(),
+                    };
+                    let seeds = &[
+                        &b"vault"[..],
+                        &ctx.accounts.claimer.key().to_bytes(),
+                        &ctx.accounts.token.key().to_bytes(),
+                        &[vault.vault_bump],
+                    ];
+                    let imzaciseed = &[&seeds[..]];
+                    let paralel_calistirma = CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        hesaplar,
+                        imzaciseed,
+                    );
 
                     vault.total = vault.total - money; // Deduct the claimed money from the vault's total
                     vault.accounts_vault[i] = 0; // Set the claimed money for the account to 0
+                    transfer(paralel_calistirma, vault_balance);
                     msg!("Claim successfully. Total: {}", vault.total);
                 }
 
@@ -192,24 +207,36 @@ mod purple_piggy {
 #[derive(Accounts)]
 #[instruction(name: String,percentage: Vec<u64>)]
 pub struct CreateVault<'info> {
-    /// The newly created vault account.
-
-    #[account(init,
+    #[account(
+        init,
         payer=authority,
         space = 8 + CreateVault::space(&name,percentage),
         seeds=[
             b"vault",
             name_seed(&name),
             authority.to_account_info().key.as_ref(),
+            token.key().as_ref(),
         ],
-        bump)]
+        bump,
+    )]
     pub vault: Account<'info, Vault>,
 
-    /// The authority signing the transaction.
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// The system program account.
+
+    #[account(
+        init,
+        payer = authority,
+        associated_token::mint= token,
+        associated_token::authority = vault
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub token: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
@@ -227,24 +254,71 @@ pub struct UpdateVault<'info> {
 #[derive(Accounts)]
 pub struct Deposite<'info> {
     /// PDA account to deposit to.
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"vault",authority.key().as_ref(),token.key().as_ref()],
+        bump = vault.vault_bump
+    )]
     pub vault: Account<'info, Vault>,
     /// The authority signing the transaction.
     #[account(mut)]
     pub authority: Signer<'info>,
     /// The system program account.
     pub system_program: Program<'info, System>,
+
+    pub token: Account<'info, Mint>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub token_program: Program<'info, Token>,
+    #[account(
+        init,
+        payer = authority,
+        associated_token::mint= token,
+        associated_token::authority = vault
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = authority,
+        associated_token::mint= token,
+        associated_token::authority = vault
+    )]
+    pub singer_token_account: Account<'info, TokenAccount>,
 }
 
 #[derive(Accounts)]
 pub struct ClaimVault<'info> {
     /// PDA account to claim to.
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"vault",claimer.key().as_ref(),token.key().as_ref()],
+        bump = vault.vault_bump
+    )]
     pub vault: Account<'info, Vault>,
+
+    #[account(mut)]
+    pub authority: Signer<'info>,
 
     /// The authority signing the transaction. these time its different from the authority of the vault.
     #[account(mut)]
     pub claimer: Signer<'info>,
+    #[account(
+        init,
+        payer = authority,
+        associated_token::mint= token,
+        associated_token::authority = vault
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = authority,
+        associated_token::mint= token,
+        associated_token::authority = vault
+    )]
+    pub singer_token_account: Account<'info, TokenAccount>,
+    pub token: Account<'info, Mint>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub token_program: Program<'info, Token>,
     /// The system program account.
     pub system_program: Program<'info, System>,
 }
@@ -269,6 +343,14 @@ pub struct Vault {
 
     /// The account public keys associated with the vault.
     pub accounts: Vec<Pubkey>,
+
+    // transfer edilecek token
+    pub token_id: Pubkey,
+
+    // vault'un token hesabı ATA
+    pub vault_token_account: Pubkey,
+
+    pub vault_bump: u8,
 }
 
 impl CreateVault<'_> {
@@ -292,12 +374,18 @@ impl CreateVault<'_> {
         let percentages_size = 4 + (8 * (1 + accounts_len));
         let accounts_vault_size = 4 + (8 * (1 + accounts_len));
         let accounts_size = 4 + (32 * (1 + accounts_len));
+        let token_id_size = 32;
+        let vault_token_account = 4 + 32;
         name_size
             + authority_size
             + total_size
             + percentages_size
             + accounts_vault_size
             + accounts_size
+            + token_id_size
+            + vault_token_account
+            + 8
+            + 1
     }
 }
 
