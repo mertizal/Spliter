@@ -78,41 +78,33 @@ The `delete` function allows the vault to be deleted, transferring any remaining
 - **ctx**: The transaction context, including the vault and the authority.
 
 
-| Function   | Input Parameters                   | Accounts                                            | Output Parameters           | Error Handling                |
-|------------|------------------------------------|-----------------------------------------------------|-----------------------------|--------------------------------|
-| `initialize` | `ctx: Context<CreateVault>`         | `vault: Account<'info, Vault>`                       | `Result<(), ErrorCode>`      | `ErrorCode::Unauthorized`      |
-|            | `name: String`                     | `authority: Signer<'info>`                           |                             | `ErrorCode::SumPercentages`    |
-|            | `percentages: Vec<u64>`            | `system_program: Program<'info, System>`             |                             |                                |
-|            | `acct: Vec<Pubkey>`                | `vault_token_account: Account<'info, TokenAccount>`  |                             |                                |
-|            |                                    | `token: Account<'info, Mint>`                        |                             |                                |
-|            |                                    | `token_program: Program<'info, Token>`               |                             |                                |
-|            |                                    | `associated_token_program: Program<'info, AssociatedToken>` |                        |                                |
-
-| `update`   | `ctx: Context<UpdateVault>`        | `vault: Account<'info, Vault>`                       | `Result<(), ErrorCode>`      | `ErrorCode::Unauthorized`      |
-|            | `percentages: Vec<u64>`            | `authority: Signer<'info>`                           |                             | `ErrorCode::SumPercentages`    |
-|            |                                    | `system_program: Program<'info, System>`             |                             |                                |
-
-| `delete`   | `ctx: Context<UpdateVault>`        | `vault: Account<'info, Vault>`                       | `Result<(), ErrorCode>`      | `ErrorCode::Unauthorized`      |
-|            |                                    | `authority: Signer<'info>`                           |                             |                                |
-|            |                                    | `system_program: Program<'info, System>`             |                             |                                |
-
-| `deposite` | `ctx: Context<Deposite>`           | `vault: Account<'info, Vault>`                       | `Result<(), ErrorCode>`      | `ErrorCode::Unauthorized`      |
-|            | `lamports: u64`                    | `authority: Signer<'info>`                           |                             |                                |
-|            |                                    | `vault_token_account: Account<'info, TokenAccount>`  |                             |                                |
-|            |                                    | `singer_token_account: Account<'info, TokenAccount>` |                             |                                |
-|            |                                    | `token: Account<'info, Mint>`                        |                             |                                |
-|            |                                    | `token_program: Program<'info, Token>`               |                             |                                |
-|            |                                    | `associated_token_program: Program<'info, AssociatedToken>` |                        |                                |
-|            |                                    | `system_program: Program<'info, System>`             |                             |                                |
-
-| `claim`    | `ctx: Context<ClaimVault>`         | `vault: Account<'info, Vault>`                       | `Result<(), ErrorCode>`      | `ErrorCode::Unauthorized`      |
-|            | `claimer: Signer<'info>`           | `vault_token_account: Account<'info, TokenAccount>`  |                             |                                |
-|            |                                    | `singer_token_account: Account<'info, TokenAccount>` |                             |                                |
-|            |                                    | `authority: Signer<'info>`                           |                             |                                |
-|            |                                    | `token: Account<'info, Mint>`                        |                             |                                |
-|            |                                    | `token_program: Program<'info, Token>`               |                             |                                |
-|            |                                    | `associated_token_program: Program<'info, AssociatedToken>` |                        |                                |
-|            |                                    | `system_program: Program<'info, System>`             |                             |                                |
+| Function   | Input Parameters                        | Accounts                                                    | Output Parameters               | Error Handling                                      |
+|------------|------------------------------------------|--------------------------------------------------------------|---------------------------------|------------------------------------------------------|
+| initialize | ctx: Context<CreateVault>                | vault: Account<'info, Vault>                                 | Result<(), ErrorCode>           | ErrorCode::Unauthorized                               |
+|            | name: String                             | authority: Signer<'info>                                     |                                 | ErrorCode::SumPercentages                            |
+|            | percentages: Vec<u64>                    | system_program: Program<'info, System>                       |                                 |                                                      |
+|            | acct: Vec<Pubkey>                        | vault_token_account: Account<'info, TokenAccount>            |                                 |                                                      |
+|            |                                          | token: Account<'info, Mint>                                  |                                 |                                                      |
+|            |                                          | token_program: Program<'info, Token>                         |                                 |                                                      |
+|            |                                          | associated_token_program: Program<'info, AssociatedToken>    |                                 |                                                      |
+| update     | ctx: Context<UpdateVault>                | vault: Account<'info, Vault>                                 | Result<(), ErrorCode>           | ErrorCode::Unauthorized                               |
+|            | percentages: Vec<u64>                    | authority: Signer<'info>                                     |                                 | ErrorCode::SumPercentages                            |
+| delete     | ctx: Context<UpdateVault>                | vault: Account<'info, Vault>                                 | Result<(), ErrorCode>           | ErrorCode::Unauthorized                               |
+|            |                                          | authority: Signer<'info>                                     |                                 |                                                      |
+|            |                                          | system_program: Program<'info, System>                       |                                 |                                                      |
+| deposit    | ctx: Context<Deposit>                    | vault: Account<'info, Vault>                                 | Result<(), ErrorCode>           | ErrorCode::Unauthorized                               |
+|            | lamports: u64                            | authority: Signer<'info>                                     |                                 |                                                      |
+|            |                                          | vault_token_account: Account<'info, TokenAccount>            |                                 |                                                      |
+|            |                                          | singer_token_account: Account<'info, TokenAccount>           |                                 |                                                      |
+|            |                                          | token: Account<'info, Mint>                                  |                                 |                                                      |
+|            |                                          | token_program: Program<'info, Token>                         |                                 |                                                      |
+|            |                                          | associated_token_program: Program<'info, AssociatedToken>    |                                 |                                                      |
+| claim      | ctx: Context<ClaimVault>                 | vault: Account<'info, Vault>                                 | Result<(), ErrorCode>           | ErrorCode::Unauthorized                               |
+|            | claimer: Signer<'info>                   | vault_token_account: Account<'info, TokenAccount>            |                                 |                                                      |
+|            |                                          | singer_token_account: Account<'info, TokenAccount>           |                                 |                                                      |
+|            |                                          | token: Account<'info, Mint>                                  |                                 |                                                      |
+|            |                                          | token_program: Program<'info, Token>                         |                                 |                                                      |
+|            |                                          | associated_token_program: Program<'info, AssociatedToken>    |                                 |                                                      |
 
 **Logic**:
 - The function closes the vault and transfers all assets back to the authority.
