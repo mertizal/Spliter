@@ -6,7 +6,7 @@ use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 declare_id!("5dX5TTzKk54NXdtXpocfk71NY92fXnXkm4LBhJpbaQ4b");
 
 #[program]
-mod purple_piggy {
+mod spliter {
     use super::*;
     /// Create a vault
     pub fn initialize(
