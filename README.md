@@ -77,6 +77,16 @@ The `delete` function allows the vault to be deleted, transferring any remaining
 
 - **ctx**: The transaction context, including the vault and the authority.
 
+## Functions Overview
+
+| Function   | Input Parameters | Accounts | Output Parameters | Error Handling |
+|------------|-------------------|----------|-------------------|----------------|
+| `initialize` | `name: String`, `percentages: Vec<u64>`, `acct: Vec<Pubkey>` | `vault: Account<'info, Vault>`, `authority: Signer<'info>`, `vault_token_account: Account<'info, TokenAccount>`, `token: Account<'info, Mint>`, `token_program: Program<'info, Token>`, `system_program: Program<'info, System>`, `associated_token_program: Program<'info, AssociatedToken>` | `()` | `ErrorCode::Unauthorized` if total rate != 100 or percentages.len() != acct.len() |
+| `update`    | `percentages: Vec<u64>` | `vault: Account<'info, Vault>`, `authority: Signer<'info>`, `system_program: Program<'info, System>` | `()` | `ErrorCode::Unauthorized` if total rate != 100 or vault.accounts.len() != percentages.len() |
+| `delete`    | None              | `vault: Account<'info, Vault>`, `authority: Signer<'info>`, `system_program: Program<'info, System>` | `()` | None |
+| `deposite`  | `lamports: u64`   | `vault: Account<'info, Vault>`, `authority: Signer<'info>`, `system_program: Program<'info, System>`, `token: Account<'info, Mint>`, `associated_token_program: Program<'info, AssociatedToken>`, `token_program: Program<'info, Token>`, `vault_token_account: Account<'info, TokenAccount>`, `singer_token_account: Account<'info, TokenAccount>` | `()` | None |
+| `claim`     | None              | `vault: Account<'info, Vault>`, `authority: Signer<'info>`, `claimer: Signer<'info>`, `vault_token_account: Account<'info, TokenAccount>`, `singer_token_account: Account<'info, TokenAccount>`, `token: Account<'info, Mint>`, `associated_token_program: Program<'info, AssociatedToken>`, `token_program: Program<'info, Token>`, `system_program: Program<'info, System>` | `()` | `ErrorCode::Unauthorized` if vault_balance == 0 or claimer not in vault.accounts |
+
 **Logic**:
 - The function closes the vault and transfers all assets back to the authority.
 - A log message is generated to indicate the successful deletion of the vault.
