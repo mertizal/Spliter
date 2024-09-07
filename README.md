@@ -77,6 +77,7 @@ The `delete` function allows the vault to be deleted, transferring any remaining
 
 - **ctx**: The transaction context, including the vault and the authority.
 
+
 | Function   | Input Parameters                   | Accounts                                            | Output Parameters           | Error Handling                |
 |------------|------------------------------------|-----------------------------------------------------|-----------------------------|--------------------------------|
 | `initialize` | `ctx: Context<CreateVault>`         | `vault: Account<'info, Vault>`                       | `Result<(), ErrorCode>`      | `ErrorCode::Unauthorized`      |
