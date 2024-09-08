@@ -1,5 +1,7 @@
 # SPLİTER (Vault Management Program)
 
+https://github.com/user-attachments/assets/9a45d668-ca90-471f-84eb-0b4e01e8b52b
+
 ## Introduction
 
 This program is designed to manage a vault system on the Solana blockchain using SPL tokens. The vault structure allows users to deposit SPL tokens into a shared vault, and the funds are distributed to predefined accounts based on a percentage distribution. Users can also withdraw funds from the vault according to their ownership percentage. The program is developed using the Anchor framework, which simplifies Solana program development.
