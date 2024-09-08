@@ -3,7 +3,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
 // Declare the program's ID to use in the program. You should generate a new one
-declare_id!("5dX5TTzKk54NXdtXpocfk71NY92fXnXkm4LBhJpbaQ4b");
+declare_id!("8chgJKTABWvSbKZ9ENCbKkqbC6DrjwF8VqycQ5XNQwbr");
 
 #[program]
 mod spliter {
@@ -152,7 +152,8 @@ mod spliter {
     pub fn claim(ctx: Context<ClaimVault>) -> Result<()> {
         let vault = &mut ctx.accounts.vault; // Get a mutable reference to the vault account
         let vault_balance = vault.total; // Get the current balance of the vault
-
+        let binding = vault.name.clone();
+        let name = binding.as_str();
         // Check if the vault balance is 0
         if vault_balance == 0 {
             return Err(ErrorCode::Unauthorized.into());
@@ -170,27 +171,28 @@ mod spliter {
 
                     let from = ctx.accounts.vault_token_account.to_account_info();
                     let to = ctx.accounts.singer_token_account.to_account_info();
-                    let hesaplar = Transfer {
+                    let accounts = Transfer {
                         from: from,
                         to: to,
                         authority: vault.to_account_info(),
                     };
                     let seeds = &[
                         &b"vault"[..],
+                        &name_seed(name),
                         &ctx.accounts.claimer.key().to_bytes(),
                         &ctx.accounts.token.key().to_bytes(),
                         &[vault.vault_bump],
                     ];
-                    let imzaciseed = &[&seeds[..]];
-                    let paralel_calistirma = CpiContext::new_with_signer(
+                    let singer_seed = &[&seeds[..]];
+                    let paralel_execution = CpiContext::new_with_signer(
                         ctx.accounts.token_program.to_account_info(),
-                        hesaplar,
-                        imzaciseed,
+                        accounts,
+                        singer_seed,
                     );
 
                     vault.total = vault.total - money; // Deduct the claimed money from the vault's total
                     vault.accounts_vault[i] = 0; // Set the claimed money for the account to 0
-                    transfer(paralel_calistirma, vault_balance);
+                    transfer(paralel_execution, vault_balance);
                     msg!("Claim successfully. Total: {}", vault.total);
                 }
 
@@ -222,10 +224,10 @@ pub struct CreateVault<'info> {
     pub vault: Account<'info, Vault>,
 
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub authority: Signer<'info>, // 8B4vVJeMJkPKGFj88f9GMkiBpNx5yqCPGGuCWP5Wmhjq
 
     #[account(
-        init,
+        init_if_needed,
         payer = authority,
         associated_token::mint= token,
         associated_token::authority = vault
@@ -234,6 +236,7 @@ pub struct CreateVault<'info> {
 
     #[account(mut)]
     pub token: Account<'info, Mint>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -254,11 +257,7 @@ pub struct UpdateVault<'info> {
 #[derive(Accounts)]
 pub struct Deposite<'info> {
     /// PDA account to deposit to.
-    #[account(
-        mut,
-        seeds = [b"vault",authority.key().as_ref(),token.key().as_ref()],
-        bump = vault.vault_bump
-    )]
+    #[account(mut)]
     pub vault: Account<'info, Vault>,
     /// The authority signing the transaction.
     #[account(mut)]
@@ -270,50 +269,28 @@ pub struct Deposite<'info> {
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
-    #[account(
-        init,
-        payer = authority,
-        associated_token::mint= token,
-        associated_token::authority = vault
-    )]
+    #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-    #[account(
-        init,
-        payer = authority,
-        associated_token::mint= token,
-        associated_token::authority = vault
-    )]
+    #[account(mut)]
     pub singer_token_account: Account<'info, TokenAccount>,
 }
 
 #[derive(Accounts)]
 pub struct ClaimVault<'info> {
     /// PDA account to claim to.
-    #[account(
-        mut,
-        seeds = [b"vault",claimer.key().as_ref(),token.key().as_ref()],
-        bump = vault.vault_bump
-    )]
-    pub vault: Account<'info, Vault>,
-
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub vault: Account<'info, Vault>,
 
     /// The authority signing the transaction. these time its different from the authority of the vault.
     #[account(mut)]
     pub claimer: Signer<'info>,
-    #[account(
-        init,
-        payer = authority,
-        associated_token::mint= token,
-        associated_token::authority = vault
-    )]
+    #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
     #[account(
-        init,
-        payer = authority,
+        init_if_needed,
+        payer = claimer,
         associated_token::mint= token,
-        associated_token::authority = vault
+        associated_token::authority = claimer
     )]
     pub singer_token_account: Account<'info, TokenAccount>,
     pub token: Account<'info, Mint>,
@@ -344,10 +321,10 @@ pub struct Vault {
     /// The account public keys associated with the vault.
     pub accounts: Vec<Pubkey>,
 
-    // transfer edilecek token
+    // token to be transferred
     pub token_id: Pubkey,
 
-    // vault'un token hesabı ATA
+    // vault's token account ATA
     pub vault_token_account: Pubkey,
 
     pub vault_bump: u8,
